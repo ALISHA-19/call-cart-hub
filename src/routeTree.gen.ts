@@ -10,33 +10,53 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiV1SlugRouteImport } from './routes/api/v1/$slug'
+import { Route as ApiPublicBootstrapRouteImport } from './routes/api/public/bootstrap'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1SlugRoute = ApiV1SlugRouteImport.update({
+  id: '/api/v1/$slug',
+  path: '/api/v1/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicBootstrapRoute = ApiPublicBootstrapRouteImport.update({
+  id: '/api/public/bootstrap',
+  path: '/api/public/bootstrap',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
+  '/api/v1/$slug': typeof ApiV1SlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
+  '/api/v1/$slug': typeof ApiV1SlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
+  '/api/v1/$slug': typeof ApiV1SlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/api/public/bootstrap' | '/api/v1/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/public/bootstrap' | '/api/v1/$slug'
+  id: '__root__' | '/' | '/api/public/bootstrap' | '/api/v1/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiPublicBootstrapRoute: typeof ApiPublicBootstrapRoute
+  ApiV1SlugRoute: typeof ApiV1SlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,12 +68,38 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/$slug': {
+      id: '/api/v1/$slug'
+      path: '/api/v1/$slug'
+      fullPath: '/api/v1/$slug'
+      preLoaderRoute: typeof ApiV1SlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/bootstrap': {
+      id: '/api/public/bootstrap'
+      path: '/api/public/bootstrap'
+      fullPath: '/api/public/bootstrap'
+      preLoaderRoute: typeof ApiPublicBootstrapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiPublicBootstrapRoute: ApiPublicBootstrapRoute,
+  ApiV1SlugRoute: ApiV1SlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
