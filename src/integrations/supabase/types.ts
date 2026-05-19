@@ -14,16 +14,184 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      apis: {
+        Row: {
+          calls_per_pack: number
+          created_at: string
+          description: string
+          dummy_response: Json
+          endpoint_slug: string
+          id: string
+          method: string
+          name: string
+          price_per_pack: number
+        }
+        Insert: {
+          calls_per_pack?: number
+          created_at?: string
+          description?: string
+          dummy_response?: Json
+          endpoint_slug: string
+          id?: string
+          method?: string
+          name: string
+          price_per_pack?: number
+        }
+        Update: {
+          calls_per_pack?: number
+          created_at?: string
+          description?: string
+          dummy_response?: Json
+          endpoint_slug?: string
+          id?: string
+          method?: string
+          name?: string
+          price_per_pack?: number
+        }
+        Relationships: []
+      }
+      call_logs: {
+        Row: {
+          api_id: string | null
+          api_slug: string | null
+          created_at: string
+          id: string
+          ip_address: string | null
+          response_status: number
+          response_time_ms: number
+          user_id: string | null
+        }
+        Insert: {
+          api_id?: string | null
+          api_slug?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          response_status: number
+          response_time_ms?: number
+          user_id?: string | null
+        }
+        Update: {
+          api_id?: string | null
+          api_slug?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          response_status?: number
+          response_time_ms?: number
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_logs_api_id_fkey"
+            columns: ["api_id"]
+            isOneToOne: false
+            referencedRelation: "apis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          api_key_hash: string | null
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          api_key_hash?: string | null
+          created_at?: string
+          email: string
+          id: string
+        }
+        Update: {
+          api_key_hash?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          api_id: string
+          created_at: string
+          id: string
+          remaining_calls: number
+          total_purchased: number
+          user_id: string
+        }
+        Insert: {
+          api_id: string
+          created_at?: string
+          id?: string
+          remaining_calls?: number
+          total_purchased?: number
+          user_id: string
+        }
+        Update: {
+          api_id?: string
+          created_at?: string
+          id?: string
+          remaining_calls?: number
+          total_purchased?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_api_id_fkey"
+            columns: ["api_id"]
+            isOneToOne: false
+            referencedRelation: "apis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      meter_api_call: {
+        Args: {
+          _ip: string
+          _key_hash: string
+          _response_time_ms: number
+          _slug: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +318,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
