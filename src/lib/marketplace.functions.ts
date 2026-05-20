@@ -158,7 +158,7 @@ export const buyApi = createServerFn({ method: "POST" })
       plainKey = genKey();
       await supabaseAdmin
         .from("profiles")
-        .update({ api_key_hash: sha256(plainKey) })
+        .update({ api_key_hash: sha256(plainKey), api_key: plainKey } as any)
         .eq("id", context.userId);
     }
 
