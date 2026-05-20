@@ -45,21 +45,38 @@ function Dashboard() {
 
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
   const [show, setShow] = useState(false);
+  const [confirmRegen, setConfirmRegen] = useState(false);
+  const revealFn = useServerFn(revealApiKey);
+
+  const reveal = useMutation({
+    mutationFn: () => revealFn(),
+    onSuccess: (d) => {
+      if (!d.apiKey) {
+        toast.error("No key yet. Click Generate.");
+        return;
+      }
+      setRevealedKey(d.apiKey);
+      setShow(true);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
 
   const regen = useMutation({
     mutationFn: () => regenFn(),
     onSuccess: (d) => {
       setRevealedKey(d.apiKey);
       setShow(true);
+      setConfirmRegen(false);
       toast.success("New API key generated — old key is now invalid");
       qc.invalidateQueries({ queryKey: ["me"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
 
-  const copy = () => {
-    if (!revealedKey) return;
-    navigator.clipboard.writeText(revealedKey);
+  const copy = (k?: string | null) => {
+    const v = k ?? revealedKey;
+    if (!v) return;
+    navigator.clipboard.writeText(v);
     toast.success("Copied to clipboard");
   };
 
@@ -68,6 +85,8 @@ function Dashboard() {
     const used = 1 - s.remaining_calls / s.total_purchased;
     return used >= 0.9 && s.remaining_calls > 0;
   });
+
+  const displayKey = revealedKey ?? (me?.maskedKey ?? null);
 
   return (
     <AppShell>
@@ -98,41 +117,47 @@ function Dashboard() {
           <Key className="h-4 w-4 text-primary" />
           API Key
         </div>
-        {revealedKey ? (
-          <>
-            <div className="mt-4 flex items-center gap-2">
-              <code className="flex-1 truncate rounded-md border border-border bg-background px-3 py-2 font-mono text-sm">
-                {show ? revealedKey : "•".repeat(Math.min(revealedKey.length, 40))}
-              </code>
-              <button
-                onClick={() => setShow((s) => !s)}
-                className="rounded-md border border-border p-2 hover:bg-secondary"
-                aria-label="Toggle visibility"
-              >
-                {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-              <button
-                onClick={copy}
-                className="rounded-md border border-border p-2 hover:bg-secondary"
-                aria-label="Copy"
-              >
-                <Copy className="h-4 w-4" />
-              </button>
-            </div>
-            <p className="mt-2 text-xs text-warning">
-              Save this key now — it will not be shown again.
-            </p>
-          </>
+        {displayKey ? (
+          <div className="mt-4 flex items-center gap-2">
+            <code className="flex-1 truncate rounded-md border border-border bg-background px-3 py-2 font-mono text-sm">
+              {show && revealedKey ? revealedKey : displayKey}
+            </code>
+            <button
+              onClick={() => {
+                if (show) {
+                  setShow(false);
+                } else if (revealedKey) {
+                  setShow(true);
+                } else {
+                  reveal.mutate();
+                }
+              }}
+              disabled={reveal.isPending}
+              className="rounded-md border border-border p-2 hover:bg-secondary"
+              aria-label="Toggle visibility"
+            >
+              {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+            <button
+              onClick={async () => {
+                if (revealedKey) return copy();
+                const r = await revealFn();
+                copy(r.apiKey);
+              }}
+              className="rounded-md border border-border p-2 hover:bg-secondary"
+              aria-label="Copy"
+            >
+              <Copy className="h-4 w-4" />
+            </button>
+          </div>
         ) : (
           <p className="mt-4 text-sm text-muted-foreground">
-            {me?.hasApiKey
-              ? "Your key is hidden for security. Regenerate to view a new one (old key invalidated)."
-              : "You don't have a key yet. Buy an API or click Regenerate."}
+            You don't have a key yet. Buy an API or click Generate below.
           </p>
         )}
         <div className="mt-4 flex flex-wrap gap-2">
           <button
-            onClick={() => regen.mutate()}
+            onClick={() => (me?.hasApiKey ? setConfirmRegen(true) : regen.mutate())}
             disabled={regen.isPending}
             className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
@@ -144,6 +169,36 @@ function Dashboard() {
           </code>
         </div>
       </div>
+
+      {confirmRegen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-sm rounded-lg border border-border bg-card p-6">
+            <div className="flex items-center gap-2 font-semibold text-warning">
+              <AlertTriangle className="h-4 w-4" />
+              Regenerate API key?
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              This invalidates your current key immediately. Any active integrations using it
+              will start receiving <code>401 Unauthorized</code> until you update them.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmRegen(false)}
+                className="rounded-md border border-border px-4 py-2 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => regen.mutate()}
+                disabled={regen.isPending}
+                className="rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground disabled:opacity-50"
+              >
+                Regenerate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mt-6 rounded-lg border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border p-4">
