@@ -9,8 +9,22 @@ import {
   myRecentLogs,
   myStats,
   regenerateKey,
+  revealApiKey,
 } from "@/lib/marketplace.functions";
 import { AppShell, StatusBadge, StatCard } from "@/components/AppShell";
+import {
+  Key,
+  RefreshCw,
+  Eye,
+  EyeOff,
+  Copy,
+  Activity,
+  Server,
+  BarChart3,
+  Calendar,
+  ShoppingBag,
+  AlertTriangle,
+} from "lucide-react";
 import {
   Key,
   RefreshCw,
