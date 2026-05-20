@@ -194,7 +194,7 @@ export const regenerateKey = createServerFn({ method: "POST" })
     const key = genKey();
     const { error } = await supabaseAdmin
       .from("profiles")
-      .update({ api_key_hash: sha256(key) })
+      .update({ api_key_hash: sha256(key), api_key: key } as any)
       .eq("id", context.userId);
     if (error) throw new Error(error.message);
     return { apiKey: key };
