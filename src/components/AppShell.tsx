@@ -8,6 +8,8 @@ import {
   Activity,
   LogOut,
   Zap,
+  ShieldCheck,
+  ArrowLeftRight,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -19,6 +21,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const getMeFn = useServerFn(getMe);
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: () => getMeFn() });
+
+  const inAdmin = path.startsWith("/admin");
+  const isAdmin = !!me?.isAdmin;
 
   const userNav = [
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -32,12 +37,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { to: "/admin/logs", label: "All logs", icon: Activity },
   ];
 
+  const nav = inAdmin && isAdmin ? adminNav : userNav;
+  const sectionLabel = inAdmin && isAdmin ? "Admin" : "User";
+
   const signOut = async () => {
     await supabase.auth.signOut();
     navigate({ to: "/login" });
   };
 
-  const isActive = (to: string) => path === to || path.startsWith(to + "/");
+  const isActive = (to: string) =>
+    to === "/admin" ? path === "/admin" : path === to || path.startsWith(to + "/");
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -46,9 +55,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Zap className="h-5 w-5 text-primary" />
           API Marketplace
         </div>
+
+        {inAdmin && isAdmin && (
+          <div className="mb-3 flex items-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Admin mode
+          </div>
+        )}
+
         <nav className="space-y-1 text-sm">
-          <div className="px-2 pb-2 text-xs uppercase tracking-wider text-muted-foreground">User</div>
-          {userNav.map((i) => (
+          <div className="px-2 pb-2 text-xs uppercase tracking-wider text-muted-foreground">
+            {sectionLabel}
+          </div>
+          {nav.map((i) => (
             <Link
               key={i.to}
               to={i.to}
@@ -62,33 +81,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {i.label}
             </Link>
           ))}
-          {me?.isAdmin && (
-            <>
-              <div className="px-2 pb-2 pt-4 text-xs uppercase tracking-wider text-muted-foreground">
-                Admin
-              </div>
-              {adminNav.map((i) => (
-                <Link
-                  key={i.to}
-                  to={i.to}
-                  className={`flex items-center gap-2 rounded-md px-3 py-2 ${
-                    isActive(i.to)
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                  }`}
-                >
-                  <i.icon className="h-4 w-4" />
-                  {i.label}
-                </Link>
-              ))}
-            </>
-          )}
         </nav>
-        <div className="mt-auto border-t border-sidebar-border pt-4 text-xs">
+
+        <div className="mt-auto space-y-3 border-t border-sidebar-border pt-4 text-xs">
+          {isAdmin && (
+            <Link
+              to={inAdmin ? "/dashboard" : "/admin"}
+              className="flex items-center gap-2 rounded-md border border-border px-3 py-2 hover:bg-sidebar-accent"
+            >
+              <ArrowLeftRight className="h-3.5 w-3.5" />
+              {inAdmin ? "Switch to user view" : "Switch to admin"}
+            </Link>
+          )}
           <div className="px-2 text-muted-foreground truncate">{me?.email}</div>
           <button
             onClick={signOut}
-            className="mt-2 flex w-full items-center gap-2 rounded-md px-3 py-2 text-sidebar-foreground/80 hover:bg-sidebar-accent"
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sidebar-foreground/80 hover:bg-sidebar-accent"
           >
             <LogOut className="h-4 w-4" />
             Sign out
