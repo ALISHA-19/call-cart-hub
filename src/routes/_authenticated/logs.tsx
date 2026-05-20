@@ -37,6 +37,30 @@ function Logs() {
   const total = data?.count ?? 0;
   const pages = Math.max(1, Math.ceil(total / 20));
 
+  const exportCsv = () => {
+    const header = ["Timestamp", "API", "Status", "Latency (ms)", "IP"];
+    const lines = rows.map((l: any) =>
+      [
+        new Date(l.created_at).toISOString(),
+        (l.apis?.name ?? l.api_slug ?? "").replace(/"/g, '""'),
+        l.response_status,
+        l.response_time_ms,
+        l.ip_address ?? "",
+      ]
+        .map((v) => `"${v}"`)
+        .join(","),
+    );
+    const blob = new Blob([[header.join(","), ...lines].join("\n")], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `api-logs-page-${page}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <AppShell>
       <h1 className="text-2xl font-semibold">My call logs</h1>
