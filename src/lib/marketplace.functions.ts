@@ -63,6 +63,29 @@ export const myRecentLogs = createServerFn({ method: "GET" })
     return data ?? [];
   });
 
+export const myStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const [{ count: total }, { count: todayCount }, { count: subs }] = await Promise.all([
+      supabaseAdmin
+        .from("call_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", context.userId),
+      supabaseAdmin
+        .from("call_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", context.userId)
+        .gte("created_at", today.toISOString()),
+      supabaseAdmin
+        .from("subscriptions")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", context.userId),
+    ]);
+    return { total: total ?? 0, today: todayCount ?? 0, subs: subs ?? 0 };
+  });
+
 export const myLogs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i) =>

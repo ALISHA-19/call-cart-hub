@@ -1,38 +1,94 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Zap } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
-  validateSearch: (s) => ({ mode: (s.mode as string) === "signup" ? "signup" : "login" }),
+  validateSearch: (s) => ({
+    mode:
+      (s.mode as string) === "signup"
+        ? "signup"
+        : (s.mode as string) === "forgot"
+          ? "forgot"
+          : "login",
+  }),
   component: LoginPage,
 });
 
-const schema = z.object({
-  email: z.string().email().max(255),
-  password: z.string().min(6).max(72),
-});
+const emailSchema = z.string().trim().email("Enter a valid email").max(255);
+const passwordSchema = z
+  .string()
+  .min(8, "At least 8 characters")
+  .max(72, "Too long")
+  .regex(/[A-Z]/, "Needs an uppercase letter")
+  .regex(/[a-z]/, "Needs a lowercase letter")
+  .regex(/[0-9]/, "Needs a number");
+
+function scorePassword(p: string) {
+  let s = 0;
+  if (p.length >= 8) s++;
+  if (p.length >= 12) s++;
+  if (/[A-Z]/.test(p) && /[a-z]/.test(p)) s++;
+  if (/[0-9]/.test(p)) s++;
+  if (/[^A-Za-z0-9]/.test(p)) s++;
+  return Math.min(s, 4);
+}
 
 function LoginPage() {
   const { mode } = Route.useSearch();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
-  const isSignup = mode === "signup";
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const parsed = schema.safeParse({ email, password });
-    if (!parsed.success) {
-      toast.error(parsed.error.issues[0].message);
-      return;
+  const isSignup = mode === "signup";
+  const isForgot = mode === "forgot";
+  const score = useMemo(() => scorePassword(password), [password]);
+  const strengthLabel = ["Too weak", "Weak", "Fair", "Good", "Strong"][score];
+  const strengthColor = [
+    "bg-destructive",
+    "bg-destructive",
+    "bg-warning",
+    "bg-primary",
+    "bg-success",
+  ][score];
+
+  const validate = () => {
+    const next: Record<string, string> = {};
+    const e = emailSchema.safeParse(email);
+    if (!e.success) next.email = e.error.issues[0].message;
+    if (isForgot) {
+      setErrors(next);
+      return Object.keys(next).length === 0;
     }
+    if (isSignup) {
+      const p = passwordSchema.safeParse(password);
+      if (!p.success) next.password = p.error.issues[0].message;
+      if (password !== confirm) next.confirm = "Passwords do not match";
+    } else {
+      if (!password) next.password = "Required";
+    }
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  const onSubmit = async (ev: React.FormEvent) => {
+    ev.preventDefault();
+    if (!validate()) return;
     setBusy(true);
     try {
-      if (isSignup) {
+      if (isForgot) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin + "/login",
+        });
+        if (error) throw error;
+        toast.success("If that email exists, a reset link is on its way.");
+        navigate({ to: "/login", search: { mode: "login" } });
+      } else if (isSignup) {
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -40,18 +96,26 @@ function LoginPage() {
         });
         if (error) throw error;
         toast.success("Account created");
+        navigate({ to: "/dashboard" });
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Welcome back");
+        navigate({ to: "/dashboard" });
       }
-      navigate({ to: "/dashboard" });
     } catch (err: any) {
       toast.error(err.message ?? "Failed");
     } finally {
       setBusy(false);
     }
   };
+
+  const title = isForgot ? "Reset password" : isSignup ? "Create account" : "Sign in";
+  const subtitle = isForgot
+    ? "We'll email you a reset link."
+    : isSignup
+      ? "Start buying API quotas."
+      : "Welcome back.";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -61,61 +125,124 @@ function LoginPage() {
           API Marketplace
         </Link>
         <div className="rounded-lg border border-border bg-card p-6">
-          <h1 className="text-xl font-semibold">{isSignup ? "Create account" : "Sign in"}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {isSignup ? "Start buying API quotas." : "Welcome back."}
-          </p>
-          <form onSubmit={onSubmit} className="mt-6 space-y-4">
+          <h1 className="text-xl font-semibold">{title}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+          <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
             <div>
               <label className="text-sm text-muted-foreground">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                aria-invalid={!!errors.email}
+                className={`mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm ${
+                  errors.email ? "border-destructive" : "border-input"
+                }`}
                 required
               />
+              {errors.email && (
+                <p className="mt-1 text-xs text-destructive">{errors.email}</p>
+              )}
             </div>
-            <div>
-              <label className="text-sm text-muted-foreground">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                required
-              />
-            </div>
+
+            {!isForgot && (
+              <div>
+                <label className="text-sm text-muted-foreground">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  aria-invalid={!!errors.password}
+                  className={`mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm ${
+                    errors.password ? "border-destructive" : "border-input"
+                  }`}
+                  required
+                />
+                {isSignup && password && (
+                  <div className="mt-2">
+                    <div className="flex h-1 gap-1">
+                      {[0, 1, 2, 3].map((i) => (
+                        <div
+                          key={i}
+                          className={`flex-1 rounded-full ${
+                            i < score ? strengthColor : "bg-muted"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">{strengthLabel}</p>
+                  </div>
+                )}
+                {errors.password && (
+                  <p className="mt-1 text-xs text-destructive">{errors.password}</p>
+                )}
+              </div>
+            )}
+
+            {isSignup && (
+              <div>
+                <label className="text-sm text-muted-foreground">Confirm password</label>
+                <input
+                  type="password"
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  aria-invalid={!!errors.confirm}
+                  className={`mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm ${
+                    errors.confirm ? "border-destructive" : "border-input"
+                  }`}
+                  required
+                />
+                {errors.confirm && (
+                  <p className="mt-1 text-xs text-destructive">{errors.confirm}</p>
+                )}
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={busy}
               className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
             >
-              {busy ? "Please wait…" : isSignup ? "Create account" : "Sign in"}
+              {busy
+                ? "Please wait…"
+                : isForgot
+                  ? "Send reset link"
+                  : isSignup
+                    ? "Create account"
+                    : "Sign in"}
             </button>
           </form>
-          <p className="mt-4 text-center text-xs text-muted-foreground">
-            {isSignup ? (
-              <>
-                Already have an account?{" "}
+
+          <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+            {!isForgot && !isSignup && (
+              <Link
+                to="/login"
+                search={{ mode: "forgot" }}
+                className="hover:text-primary hover:underline"
+              >
+                Forgot password?
+              </Link>
+            )}
+            <span className="ml-auto">
+              {isSignup || isForgot ? (
                 <Link to="/login" search={{ mode: "login" }} className="text-primary hover:underline">
                   Sign in
                 </Link>
-              </>
-            ) : (
-              <>
-                New here?{" "}
-                <Link to="/login" search={{ mode: "signup" }} className="text-primary hover:underline">
+              ) : (
+                <Link
+                  to="/login"
+                  search={{ mode: "signup" }}
+                  className="text-primary hover:underline"
+                >
                   Create account
                 </Link>
-              </>
-            )}
-          </p>
+              )}
+            </span>
+          </div>
         </div>
-        <div className="mt-6 rounded-md border border-border bg-card p-4 text-xs font-mono text-muted-foreground">
-          <div>admin@marketplace.dev / Admin@123</div>
-          <div>user@test.dev / User@123</div>
-        </div>
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          Demo credentials are in the project README.
+        </p>
       </div>
     </div>
   );

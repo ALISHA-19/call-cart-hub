@@ -37,6 +37,30 @@ function Logs() {
   const total = data?.count ?? 0;
   const pages = Math.max(1, Math.ceil(total / 20));
 
+  const exportCsv = () => {
+    const header = ["Timestamp", "API", "Status", "Latency (ms)", "IP"];
+    const lines = rows.map((l: any) =>
+      [
+        new Date(l.created_at).toISOString(),
+        (l.apis?.name ?? l.api_slug ?? "").replace(/"/g, '""'),
+        l.response_status,
+        l.response_time_ms,
+        l.ip_address ?? "",
+      ]
+        .map((v) => `"${v}"`)
+        .join(","),
+    );
+    const blob = new Blob([[header.join(","), ...lines].join("\n")], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `api-logs-page-${page}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <AppShell>
       <h1 className="text-2xl font-semibold">My call logs</h1>
@@ -84,6 +108,13 @@ function Logs() {
           onChange={(e) => setTo(e.target.value)}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm"
         />
+        <button
+          onClick={exportCsv}
+          disabled={rows.length === 0}
+          className="ml-auto rounded-md border border-border px-3 py-2 text-sm hover:bg-secondary disabled:opacity-40"
+        >
+          Export CSV
+        </button>
       </div>
 
       <div className="mt-4 rounded-lg border border-border bg-card">
