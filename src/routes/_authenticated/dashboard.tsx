@@ -25,19 +25,6 @@ import {
   ShoppingBag,
   AlertTriangle,
 } from "lucide-react";
-import {
-  Key,
-  RefreshCw,
-  Eye,
-  EyeOff,
-  Copy,
-  Activity,
-  Server,
-  BarChart3,
-  Calendar,
-  ShoppingBag,
-  AlertTriangle,
-} from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
