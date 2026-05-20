@@ -108,6 +108,13 @@ function Logs() {
           onChange={(e) => setTo(e.target.value)}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm"
         />
+        <button
+          onClick={exportCsv}
+          disabled={rows.length === 0}
+          className="ml-auto rounded-md border border-border px-3 py-2 text-sm hover:bg-secondary disabled:opacity-40"
+        >
+          Export CSV
+        </button>
       </div>
 
       <div className="mt-4 rounded-lg border border-border bg-card">
