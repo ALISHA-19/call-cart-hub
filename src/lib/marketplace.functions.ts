@@ -16,15 +16,32 @@ export const getMe = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { userId } = context;
     const [{ data: profile }, { data: roles }] = await Promise.all([
-      supabaseAdmin.from("profiles").select("id,email,api_key_hash").eq("id", userId).maybeSingle(),
+      supabaseAdmin
+        .from("profiles")
+        .select("id,email,api_key,api_key_hash")
+        .eq("id", userId)
+        .maybeSingle(),
       supabaseAdmin.from("user_roles").select("role").eq("user_id", userId),
     ]);
+    const key = (profile as any)?.api_key as string | null | undefined;
     return {
       id: userId,
       email: profile?.email ?? "",
       hasApiKey: !!profile?.api_key_hash,
+      maskedKey: key ? key.slice(0, 6) + "•".repeat(20) + key.slice(-4) : null,
       isAdmin: (roles ?? []).some((r) => r.role === "admin"),
     };
+  });
+
+export const revealApiKey = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data } = await supabaseAdmin
+      .from("profiles")
+      .select("api_key")
+      .eq("id", context.userId)
+      .maybeSingle();
+    return { apiKey: (data as any)?.api_key ?? null };
   });
 
 export const listCatalog = createServerFn({ method: "GET" })
@@ -141,7 +158,7 @@ export const buyApi = createServerFn({ method: "POST" })
       plainKey = genKey();
       await supabaseAdmin
         .from("profiles")
-        .update({ api_key_hash: sha256(plainKey) })
+        .update({ api_key_hash: sha256(plainKey), api_key: plainKey } as any)
         .eq("id", context.userId);
     }
 
@@ -177,7 +194,7 @@ export const regenerateKey = createServerFn({ method: "POST" })
     const key = genKey();
     const { error } = await supabaseAdmin
       .from("profiles")
-      .update({ api_key_hash: sha256(key) })
+      .update({ api_key_hash: sha256(key), api_key: key } as any)
       .eq("id", context.userId);
     if (error) throw new Error(error.message);
     return { apiKey: key };

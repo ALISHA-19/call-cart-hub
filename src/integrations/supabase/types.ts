@@ -93,18 +93,21 @@ export type Database = {
       }
       profiles: {
         Row: {
+          api_key: string | null
           api_key_hash: string | null
           created_at: string
           email: string
           id: string
         }
         Insert: {
+          api_key?: string | null
           api_key_hash?: string | null
           created_at?: string
           email: string
           id: string
         }
         Update: {
+          api_key?: string | null
           api_key_hash?: string | null
           created_at?: string
           email?: string
@@ -180,15 +183,26 @@ export type Database = {
         }
         Returns: boolean
       }
-      meter_api_call: {
-        Args: {
-          _ip: string
-          _key_hash: string
-          _response_time_ms: number
-          _slug: string
-        }
-        Returns: Json
-      }
+      meter_api_call:
+        | {
+            Args: {
+              _ip: string
+              _key_hash: string
+              _response_time_ms: number
+              _slug: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _ip: string
+              _key_hash: string
+              _method?: string
+              _response_time_ms: number
+              _slug: string
+            }
+            Returns: Json
+          }
     }
     Enums: {
       app_role: "admin" | "user"
