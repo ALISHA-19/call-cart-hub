@@ -17,7 +17,7 @@ async function handle(request: Request, params: { slug: string }) {
 
   if (!key) {
     return Response.json(
-      { error: "Missing x-api-key header" },
+      { error: "Unauthorized: Missing x-api-key header" },
       { status: 401, headers: cors() },
     );
   }
@@ -27,6 +27,7 @@ async function handle(request: Request, params: { slug: string }) {
     _slug: params.slug,
     _ip: ip,
     _response_time_ms: Date.now() - t0,
+    _method: request.method,
   });
 
   if (error) {
